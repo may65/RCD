@@ -1,63 +1,101 @@
-#admin.py
 from aiogram import Router, types
 from aiogram.filters import Command
 import csv
 import sqlite3
+from config import ADMINS
+from utils import load_messages
 
+messages = load_messages()
 admin_router = Router()
 
+
 def is_admin(user_id: int) -> bool:
-    # Добавить ID администраторов в .env
-    print(f'admin/is_admin/{user_id}')
-    return user_id in [123456789]
+    return user_id in ADMINS
+
 
 @admin_router.message(Command("list"))
 async def list_handler(message: types.Message):
-    print('admin/list_handler')
-    # if not is_admin(message.from_user.id):
-    #     print('admin/list_handler/is_admin')
-    #     return
+    if not is_admin(message.from_user.id):
+        return
 
     with sqlite3.connect('users.db') as conn:
-        print('admin/list_handler/sqlite3.connect')
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    print('admin/list_handler/message.answer')
-    await message.answer(f"📊 Зарегистрировано участников: {count}")
+
+    await message.answer(messages['admin_list'].format(count=count))
+
 
 @admin_router.message(Command("export"))
 async def export_handler(message: types.Message):
-    print(f'admin/export_handler/{types.Message}')
-    # if not is_admin(message.from_user.id):
-    #     print(f'admin/export_handler/if/{is_admin(message.from_user.id)}')
-    #     return
+    if not is_admin(message.from_user.id):
+        return
 
     with sqlite3.connect('users.db') as conn:
-        # print(f'admin/export_handler/with/{sqlite3.connect('users.db')}')
         users = conn.execute("SELECT * FROM users").fetchall()
 
     with open('users.csv', 'w', newline='', encoding='utf-8') as f:
-        # print(f'admin/export_handler/with/{open('users.csv', 'w', newline='', encoding='utf-8')}')
         writer = csv.writer(f)
         writer.writerow(['ID', 'User ID', 'Username', 'Phone', 'Registration Time', 'Reminder Sent'])
         writer.writerows(users)
-    print(f'admin/export_handler/{message.answer_document(types.FSInputFile('users.csv'))}')
-    await message.answer_document(types.FSInputFile('users.csv'))
 
+    await message.answer_document(types.FSInputFile('users.csv'), caption=messages['export_success'])
+
+
+# @admin_router.message(Command("broadcast"))
+# async def broadcast_handler(message: types.Message):
+#     if not is_admin(message.from_user.id):
+#         return
+#
+#     text = message.text.replace('/broadcast', '').strip()
+#     if not text:
+#         await message.answer("❌ Укажите текст: /broadcast <текст>")
+#         return
+#
+#     with sqlite3.connect('users.db') as conn:
+#         users = conn.execute("SELECT telegram_user_id FROM users").fetchall()
+#
+#     success = 0
+#     errors = 0
+#     for (user_id,) in users:
+#         try:
+#             await message.bot.send_message(user_id, text)
+#             success += 1
+#         except:
+#             errors += 1
+#
+#     await message.answer(messages['broadcast_success'].format(success=success, errors=errors))
 @admin_router.message(Command("broadcast"))
 async def broadcast_handler(message: types.Message):
-    print(f'admin/broadcast_handler/{is_admin(message.from_user.id)}')
-    # if not True:#is_admin(message.from_user.id):
-    #     print(f'admin/broadcast_handler/if/{is_admin(message.from_user.id)}')
-    #     return
-    print(f'admin/broadcast_handler/')
-    text = message.text.replace('/broadcast', '').strip()
+    if not is_admin(message.from_user.id):
+        return
+
+    # Разделяем команду и текст
+    parts = message.text.split(maxsplit=1)
+
+    # Если после команды нет текста
+    if len(parts) < 2:
+        await message.answer(messages['broadcast_empty'])
+        return
+
+    text = parts[1].strip()  # Удаляем пробелы по краям
+
+    # Если текст состоит только из пробелов
+    if not text:
+        await message.answer(messages['broadcast_empty'])
+        return
+
+    # Отправка сообщений пользователям
+    success = 0
+    errors = 0
     with sqlite3.connect('users.db') as conn:
-        print('admin/broadcast_handler/sqlite3.connect')
         users = conn.execute("SELECT telegram_user_id FROM users").fetchall()
 
     for (user_id,) in users:
         try:
-            print('admin/broadcast_handler/for/try')
             await message.bot.send_message(user_id, text)
+            success += 1
         except Exception as e:
-            print(f"Error sending to {user_id}: {e}")
+            errors += 1
+
+    await message.answer(
+        messages['broadcast_result'].format(success=success, errors=errors)
+    )
