@@ -104,7 +104,6 @@ boolean
 
 ## Установка: git clone https://github.com/may65/RCD.git
 ## Установка модулей: pip install -r requirements.txt
-## Установка BD: сама БД есть в github
-## Запуск: python main.py
+## Запуск: python bot.py
 ## Конфигурация: TOKEN возьмите в BotFather для своего telegram и запишите в .env
 ## Просмотр: сверьтесь с telegram 
