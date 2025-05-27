@@ -47,6 +47,7 @@ class Form(StatesGroup):
 
 
 async def get_db_connection():
+    print('get_db_connection')
     return await asyncpg.connect(
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
@@ -72,6 +73,7 @@ async def init_db():
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
+    print('start_handler')
     conn = await get_db_connection()
     exists = await conn.fetchval(
         "SELECT 1 FROM participants WHERE telegram_user_id = $1",
@@ -99,6 +101,7 @@ async def start_handler(message: types.Message):
 
 @dp.message(Command("help"))
 async def help_handler(message: types.Message):
+    print('help')
     help_text = messages["help"]["base"]
 
     if message.from_user.id == ADMIN_ID:
@@ -113,6 +116,7 @@ async def help_handler(message: types.Message):
 
 @dp.message(F.contact)
 async def contact_handler(message: types.Message, state: FSMContext):
+    print('contact_handler')
     phone = message.contact.phone_number
     username = message.from_user.username
 
@@ -129,6 +133,7 @@ async def contact_handler(message: types.Message, state: FSMContext):
 
 @dp.message(F.text, StateFilter(Form.waiting_for_username))
 async def username_handler(message: types.Message, state: FSMContext):
+    print('username_handler')
     data = await state.get_data()
 
     if 'phone' in data:
@@ -140,6 +145,7 @@ async def username_handler(message: types.Message, state: FSMContext):
 
 
 async def save_user(user_id: int, username: str, phone: str):
+    print('save_user')
     conn = await get_db_connection()
     await conn.execute(
         "INSERT INTO participants (telegram_user_id, username, phone_number, registration_time) VALUES ($1, $2, $3, NOW())",
@@ -149,6 +155,7 @@ async def save_user(user_id: int, username: str, phone: str):
 
 
 async def send_reminders():
+    print('send_reminders')
     conn = await get_db_connection()
     participants = await conn.fetch(
         "SELECT * FROM participants WHERE reminder_sent = FALSE"
@@ -173,6 +180,7 @@ async def send_reminders():
 
 @dp.message(Command("list"))
 async def list_handler(message: types.Message):
+    print('list')
     if message.from_user.id != ADMIN_ID:
         await message.answer(messages["errors"]["no_access"])
         return
@@ -185,6 +193,7 @@ async def list_handler(message: types.Message):
 
 @dp.message(Command("export"))
 async def export_handler(message: types.Message):
+    print('export')
     if message.from_user.id != ADMIN_ID:
         return
 
@@ -204,7 +213,7 @@ async def export_handler(message: types.Message):
 
 @dp.message(Command("broadcast"))
 async def broadcast_handler(message: types.Message):
-    print('broadcast_1')
+    print('broadcast')
     # print(f'message.from_user.id-{message.from_user.id} message.text.split()-{message.text.split()}')
     if message.from_user.id != ADMIN_ID or len(message.text.split()) < 2:
         return
